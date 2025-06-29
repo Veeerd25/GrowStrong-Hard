@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+
+  <meta charset="UTF-8">
+  <title>Checkout | Grow Parfum</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: #f9f9f9;
+    }
+    h1 { text-align: center; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    tfoot td {
+      font-weight: bold;
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1 class="checkout-header">
+  <span>Checkout</span>
+</h1>
+
+  <div id="info"></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Produk</th>
+        <th>Qty</th>
+        <th>Harga</th>
+        <th>Subtotal</th>
+      </tr>
+    </thead>
+    <tbody id="checkout-items"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">Total</td>
+        <td id="checkout-total">Rp0</td>
+      </tr>
+    </tfoot><hr>
+<h2>Ulasan Anda</h2>
+<div id="ulasan-display">Belum ada ulasan.</div>
+
+<div class="review-form">
+  <h3>Beri Ulasan</h3>
+  <label>Rating:<br>
+    <select id="rating">
+      <option value="5">★★★★★ (5)</option>
+      <option value="4">★★★★☆ (4)</option>
+      <option value="3">★★★☆☆ (3)</option>
+      <option value="2">★★☆☆☆ (2)</option>
+      <option value="1">★☆☆☆☆ (1)</option>
+    </select>
+  </label><br><br>
+  <label>Komentar:<br>
+    <textarea id="komentar" rows="4" placeholder="Tulis ulasan Anda di sini..."></textarea>
+  </label><br><br>
+  <label>Foto (opsional):<br>
+  <input type="file" id="foto-ulasan" accept="image/*">
+</label><br><br>
+  <button onclick="simpanUlasan()" class="review-button"><i class="fas fa-paper-plane"></i> Kirim Ulasan</button>
+</div>
+
+
+  </table>
+  <button onclick="generatePDF()" class="pdf-button"><i class="fas fa-file-pdf"></i> Unduh Struk PDF</button>
+
+  <script>
+    const data = JSON.parse(localStorage.getItem('checkoutData'));
+    if (data) {
+      document.getElementById('info').innerHTML = `
+        <p><strong>Nama:</strong> ${data.nama}</p>
+        <p><strong>Kontak:</strong> ${data.kontak}</p>
+        <p><strong>Metode Pembayaran:</strong> ${data.metode}</p>
+      `;
+
+      const tbody = document.getElementById('checkout-items');
+      let total = 0;
+      data.items.forEach(item => {
+        const subtotal = item.qty * 100000;
+        total += subtotal;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.qty}</td>
+          <td>Rp100.000</td>
+          <td>Rp${subtotal.toLocaleString('id-ID')}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      document.getElementById('checkout-total').textContent = 'Rp' + total.toLocaleString('id-ID');
+    } else {
+      document.body.innerHTML = '<h2>Tidak ada data checkout.</h2>';
+    }
+  </script>
+  <script>
+  async function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const data = JSON.parse(localStorage.getItem('checkoutData'));
+  if (!data) return;
+
+  const today = new Date();
+  const tanggal = today.toLocaleDateString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  const jam = today.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const invoiceNo = 'INV-' + today.getTime(); // contoh: INV-1720012345678
+
+  let y = 10;
+
+  doc.setFontSize(14);
+  doc.text("Grow Parfum - Struk Pembelian", 10, y);
+  y += 10;
+
+  doc.setFontSize(11);
+  doc.text(`Tanggal: ${tanggal} ${jam}`, 10, y); y += 6;
+  doc.text(`Invoice: ${invoiceNo}`, 10, y); y += 6;
+  doc.text(`Nama: ${data.nama}`, 10, y); y += 6;
+  doc.text(`Kontak: ${data.kontak}`, 10, y); y += 6;
+  doc.text(`Metode Pembayaran: ${data.metode}`, 10, y); y += 10;
+
+  doc.text("Produk", 10, y);
+  doc.text("Qty", 80, y);
+  doc.text("Harga", 110, y);
+  doc.text("Subtotal", 150, y);
+  y += 6;
+
+  let total = 0;
+  data.items.forEach(item => {
+  const subtotal = item.qty * 100000;
+  total += subtotal;
+
+  doc.text(item.name, 10, y);
+  doc.text(`${item.qty}`, 80, y);
+  doc.text(`Rp${item.price.toLocaleString('id-ID')}`, 110, y);
+  doc.text(`Rp${subtotal.toLocaleString('id-ID')}`, 150, y);
+  y += 6;
+  });
+
+  y += 4;
+  doc.setFontSize(12);
+  doc.text(`Total: Rp${total.toLocaleString('id-ID')}`, 10, y);
+
+  doc.save(`struk_${invoiceNo}.pdf`);
+}
+
+</script>
+<script>
+function simpanUlasan() {
+  const rating = document.getElementById("rating").value;
+  const komentar = document.getElementById("komentar").value;
+  const fileInput = document.getElementById("foto-ulasan");
+  const file = fileInput.files[0];
+
+  if (!komentar.trim()) {
+    alert("Komentar tidak boleh kosong!");
+    return;
+  }
+
+  const data = JSON.parse(localStorage.getItem("checkoutData"));
+  const produkDibeli = data.items.map(item => `${item.name} (x${item.qty})`).join(', ');
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const fotoBase64 = e.target.result;
+      simpanKeStorage(rating, komentar, produkDibeli, fotoBase64);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    simpanKeStorage(rating, komentar, produkDibeli, null);
+  }
+}
+
+function simpanKeStorage(rating, komentar, produk, foto) {
+  const ulasanBaru = { rating, komentar, produk, foto };
+  localStorage.setItem("ulasanTerbaru", JSON.stringify(ulasanBaru));
+  document.getElementById("komentar").value = "";
+  document.getElementById("rating").value = "5";
+  document.getElementById("foto-ulasan").value = "";
+  tampilkanUlasan();
+}
+</script>
+
+
+</body>
+<br>
+<a href="index.html">
+  <button class="back-button"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</button>
+</a>
+
+</html>
